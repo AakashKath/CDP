@@ -1,12 +1,12 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <dirent.h>
 
-void FilePresent(char**, char*);
 void FileAbsent(char**);
 void FolderPresent(char**);
-
-int linec=0;
+void FilePresent(char*, char*);
+int matchFound(char*, char*);
 
 int main(int argc, char** argv){
 	if(argv[2]!=NULL){
@@ -19,74 +19,83 @@ int main(int argc, char** argv){
 }
 
 void FolderPresent(char** argv){
+	DIR *d=opendir(argv[2]);	
+	FILE *fp;
 	struct dirent *entry;
-	DIR *d=opendir(argv[2]);
+	char c;
+	int row, lineCount=0;
 	if(d==NULL){
-		perror("opendir");
+		printf("Unable to locate directory!\n");
 		return;
 	}
-	while((entry=readdir(d))!=NULL){
-		if(!strcmp(entry->d_name,".") || !(strcmp(entry->d_name, ".."))){
-			continue;
-		}
-		else{
-			FilePresent(argv, entry->d_name);
-			printf(".\n.\n.\n%d", linec);
-			linec=0;
-		}
+	int fileCount = 1;
+	while((entry = readdir(d)) != NULL){
+		char filename[30];
+		strcpy(filename,argv[2]);
+		strcat(filename,"/");	
+		strcat(filename,entry->d_name);
+		printf("\nFile %d : %s\n",fileCount,entry->d_name);
+		fileCount++;
+		FilePresent(filename, argv[1]);
 	}
-	closedir(d);
 }
 
-void FilePresent(char** argv, char* entry){
-	int i=0, j=0, counter=0, lineCount=0;
-	int searchLength=strlen(argv[1]);
-	char c, *lineKeeper;
+void FilePresent(char filename[], char argv[1]){
 	FILE *fp;
-	printf("\n\n%s\n\n", entry);
-	fp = fopen(entry, "r");
-	while(1){
-		c=fgetc(fp);
-		if(feof(fp)){
-			break;
-		}
+	int lineCount=0, row, charCount;
+	char c, *line = (char*)malloc(200*sizeof(char));
+	fp=fopen(filename,"r");
+	row=1;
+	while((c=fgetc(fp)) != EOF){
 		if(c=='\n'){
-			if(counter==1){
-				printf("%d. %s\n", lineCount+1, lineKeeper);
-				linec++;
-			}
-			lineCount++;
-			counter=0;
-			memset(lineKeeper, ' ', j*sizeof(char));
-			i=0;
-			j=0;
-		}
-		else{
-			lineKeeper[j]=c;
-			j++;
-		}
-		if(c==' '){
-			i=0;
-		}
-		else if(c==argv[1][i]){
-			i++;
-		}
-		else if(argv[1][i]=='?'){
-			if(c==argv[1][i+1]){
-				i++;
-			}
-			if(c!=' '){
-				i++;
-			}
-		}
-		else if(c!=argv[1][i]){
-			i=0;
-		}
-		if(i==searchLength){
-			counter=1;
+			row++;
 		}
 	}
 	fclose(fp);
+	fp = fopen(filename,"r");
+	for(int i=1;i<row;i++){
+		charCount = 0;
+		for(c=fgetc(fp);c!='\n';c=fgetc(fp)){
+			line[charCount] = c;
+			charCount++;
+		}
+		if(matchFound(argv,line)){
+			lineCount++;
+			printf("%d.\t%s\n",i,line);
+		}
+		memset(line,'\0',200*sizeof(char));
+	}
+	fclose(fp);
+	printf(".\n.\n.\nMatched lines:%d\n",lineCount);
+}
+
+int matchFound(char pattern[], char line[]){
+	int i,k,counter = 0;
+	for(i=0;i<strlen(line);i++){
+		if(line[i] == pattern[0]){
+			counter = 1;
+			for(k=1;pattern[k] != '\0';k++){
+				if(pattern[k] == '?'){
+					if( (line[i+1]<48 || line[i+1]>57) && (line[i+1]<97 || line[i+1]>122) ){
+						counter = 0;
+						break;
+					}
+					if(line[i+2] == pattern[k+1] || line[i+1] == pattern[k+1]){
+						counter = 1;
+						break;
+					}
+				}
+				else if(line[i+k] != pattern[k]){
+					counter = 0;
+					break;
+				}
+			}
+		}
+		if(counter == 1){
+			return 1;
+		}
+	}
+	return 0;
 }
 
 void FileAbsent(char** argv){
