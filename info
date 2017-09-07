@@ -7,3 +7,4 @@ clusterssh
 telnet
 tightvncserver
 xtightvncviewer
+avahi-browse -rt _workstation._tcp
